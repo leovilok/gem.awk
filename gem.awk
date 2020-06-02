@@ -85,7 +85,7 @@ function gemini_url_open(url) {
 }
 
 function prompt() {
-    printf "> "
+    printf PAGE_URL "\033[1m>\033[0m "
 }
 
 function help() {
