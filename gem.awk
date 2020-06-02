@@ -1,6 +1,6 @@
 #!/usr/bin/awk -f
 
-function parse_gemini(socat_cmd) {
+function parse_gemini(connexion_cmd) {
     PAGE_URL=CURRENT_URL
     PAGE_LINE_NUM=0
     PAGE_LINK_NUM=0
@@ -10,7 +10,7 @@ function parse_gemini(socat_cmd) {
     for (i in PAGE_LINKS) delete PAGE_LINKS[i]
     for (i in PAGE_TITLES) delete PAGE_TITLES[i]
 
-    while (socat_cmd | getline) {
+    while (connexion_cmd | getline) {
         if (!pre) {
             if (/^=>/) {
                 PAGE_LINKS[++PAGE_LINK_NUM]=length($1) == 2 ? $2 : substr($1, 2)
@@ -32,20 +32,20 @@ function parse_gemini(socat_cmd) {
         print PAGE_LINES[i]
 }
 
-function print_text(socat_cmd) {
-    while (socat_cmd | getline)
+function print_text(connexion_cmd) {
+    while (connexion_cmd | getline)
         print
 }
 
-function socat_open(domain, path, port) {
+function connexion_open(domain, path, port) {
     if (!port)
         port = 1965
-    socat_cmd="echo 'gemini://" domain "/" path "\r' | socat - 'SSL:" domain ":" port "'"
-    socat_cmd | getline
+    connexion_cmd="echo 'gemini://" domain "/" path "' | openssl s_client -crlf -quiet -verify_quiet -connect '" domain ":" port "'"
+    connexion_cmd | getline
 }
 
-function plumb_out(socat_cmd, out) {
-	system(socat_cmd " | tail +2 " out )
+function plumb_out(connexion_cmd, out) {
+	system(connexion_cmd " | tail +2 " out )
 }
 
 function gemini_url_open(url) {
@@ -59,27 +59,27 @@ function gemini_url_open(url) {
     path=url
     sub(/gemini:\/\/[^\/]+\/?/, "", path)
 
-    socat_open(domain, path, port)
+    connexion_open(domain, path, port)
 
     if (/^2./) {
         CURRENT_URL=url
         if (!$2 || $2 ~ /text\/gemini/)
-            parse_gemini(socat_cmd)
+            parse_gemini(connexion_cmd)
         else if ($2 ~ /^text/)
-            print_text(socat_cmd)
+            print_text(connexion_cmd)
         else {
-            close(socat_cmd)
+            close(connexion_cmd)
             print "Binary filetype: " $2
             print "Blank to ignore, '| cmd' or '> file' to redirect"
             prompt()
             getline
             if (/^[|>]/)
-                plumb_out(socat_cmd, $0)
+                plumb_out(connexion_cmd, $0)
             else
                 print "Ignored."
         }
     } else {
-        close(socat_cmd)
+        close(connexion_cmd)
         print "Error: " $0
     }
 }
