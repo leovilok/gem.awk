@@ -71,7 +71,7 @@ function gemini_url_open(url) {
             close(connexion_cmd)
             print "Binary filetype: " $2
             print "Blank to ignore, '| cmd' or '> file' to redirect"
-            prompt()
+            prompt("Redirection ")
             getline
             if (/^[|>]/)
                 plumb_out(connexion_cmd, $0)
@@ -84,8 +84,8 @@ function gemini_url_open(url) {
     }
 }
 
-function prompt() {
-    printf PAGE_URL "\033[1m>\033[0m "
+function prompt(str) {
+    printf("%s%s", (str ? str : PAGE_URL), "\033[1m>\033[0m ")
 }
 
 function help() {
@@ -120,7 +120,7 @@ $1 ~ /^[[:digit:]]+$/ {
         gemini_url_open(url)
     } else {
         print "Not a gemini URL, open with (blank to ignore):"
-        prompt()
+        prompt("System command")
         getline
         if($0)
             system($0 " '" url "'")
