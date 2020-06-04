@@ -1,5 +1,18 @@
 #!/usr/bin/awk -f
 
+# ad hoc, probably very slow URL encoder
+function url_encode(url) {
+    gsub("%", "%25", url)
+    for (i=0 ; i<256 ; i++) {
+        char = sprintf("%c",i)
+        if (char !~ /[%0-9A-Za-z._~-]/ && index(url, char)) {
+            char_re = char ~ /[.^[$()|*+?{\\]/ ? "\\" char : char
+            gsub(char_re, sprintf("%%%02X", i), url)
+        }
+    }
+    return url
+}
+
 function parse_gemini(connexion_cmd) {
     PAGE_URL=CURRENT_URL
     PAGE_LINE_NUM=0
@@ -70,6 +83,13 @@ function gemini_url_open(url) {
         sub(/-quiet -verify_quiet/, "", connexion_cmd)
         print "\033[1mOpenSSL connexion error:\033[0m"
         system(connexion_cmd)
+    } else if (/^1./) { # INPUT
+        close(connexion_cmd)
+        print "Input requested: (blank to ignore)"
+        prompt(substr($2, 4, length($2) -4))
+        getline
+        if ($0)
+            gemini_url_open(url "?" url_encode($0))
     } else if (/^2./) { # SUCCESS
         CURRENT_URL=url
         if (!$2 || $2 ~ /text\/gemini/)
@@ -88,6 +108,7 @@ function gemini_url_open(url) {
                 print "Ignored."
         }
     } else if (/^3./) { # REDIRECT
+        close(connexion_cmd)
         redirect_url = substr($2, 1, length($2) -1)
         print "Follow redirection ? => \033[4m" redirect_url "\033[0m"
         prompt("Y/n")
