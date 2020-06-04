@@ -128,7 +128,11 @@ function gemini_url_open(url) {
 function any_url_open(url, base_url) {
     if (!base_url)
         base_url = PAGE_URL
-    if (url ~ /^[^:]+(\/.*)?$/) {
+    if (url ~ /^\//) {
+        # local absolute link
+        match(PAGE_URL, /^gemini:\/\/[^\/]+/)
+        gemini_url_open(substr(PAGE_URL, 1, RLENGTH) url)
+    } else if (url ~ /^[^:]+(\/.*)?$/) {
         # relative link
         if (base_url ~ /\/$/)
             gemini_url_open(base_url url)
