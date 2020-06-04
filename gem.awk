@@ -10,6 +10,9 @@ function parse_gemini(connexion_cmd) {
     for (i in PAGE_LINKS) delete PAGE_LINKS[i]
     for (i in PAGE_TITLES) delete PAGE_TITLES[i]
 
+    if (!HISTORY_NUM || HISTORY[HISTORY_NUM] != PAGE_URL)
+        HISTORY[++HISTORY_NUM] = PAGE_URL
+
     while (connexion_cmd | getline) {
         if (!pre) {
             if (/^=>/) {
@@ -101,6 +104,8 @@ function help() {
     print "  ..          : go to parent"
     print "  toc         : list titles in a text/gemini page"
     print "  links       : list URLs linked in a text/gemini page"
+    print "  history [\033[3;4mN\033[0m] : list URLs of visited pages, or open \033[3;4mN\033[0mth visited page"
+    print "  back        : go back to previous page in history (swapping the 2 last elements of history)"
     print "  help        : show this help"
 }
 
@@ -164,7 +169,6 @@ $1 ~ /^[[:digit:]]+$/ {
 $1 == "toc" {
     if (!PAGE_TITLE_NUM) {
         print "No title found."
-        next
     }
     for(i in PAGE_TITLES)
         print PAGE_LINES[PAGE_TITLES[i]] ": " PAGE_TITLES[i]
@@ -173,10 +177,33 @@ $1 == "toc" {
 $1 == "links" {
     if (!PAGE_LINK_NUM) {
         print "No link found."
-        next
     }
     for(i in PAGE_LINKS)
         print "=> [" i "] \033[4m" PAGE_LINKS[i] "\033[0m"
+}
+
+$1 == "history" {
+    if (!HISTORY_NUM) {
+        print "No page visited in this session."
+    } else if ($2) {
+        if ($2 >= 1 && $2 <= HISTORY_NUM)
+            gemini_url_open(HISTORY[$2])
+        else
+            print "Bad history ID."
+    } else
+        for(i in HISTORY)
+            print "=> [" i "] \033[4m" HISTORY[i] "\033[0m"
+}
+
+$1 == "back" {
+    if (HISTORY_NUM <= 1) {
+        print "Nowhere to go back."
+    } else {
+        url = HISTORY[HISTORY_NUM - 1]
+        HISTORY[HISTORY_NUM - 1] = HISTORY[HISTORY_NUM]
+        HISTORY[HISTORY_NUM] = url
+        gemini_url_open(url)
+    }
 }
 
 $1 == "help" {
