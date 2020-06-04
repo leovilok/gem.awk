@@ -27,6 +27,7 @@ function parse_gemini(connexion_cmd) {
         else
             PAGE_LINES[++PAGE_LINE_NUM]=$0
     }
+    close(connexion_cmd)
 
     for (i in PAGE_LINES)
         print PAGE_LINES[i]
@@ -35,6 +36,7 @@ function parse_gemini(connexion_cmd) {
 function print_text(connexion_cmd) {
     while (connexion_cmd | getline)
         print
+    close(connexion_cmd)
 }
 
 function connexion_open(domain, path, port) {
