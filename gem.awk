@@ -45,7 +45,7 @@ function print_text(connexion_cmd) {
 function connexion_open(url, domain, port) {
     if (!port)
         port = 1965
-    connexion_cmd="echo '" url "' | openssl s_client -crlf -quiet -verify_quiet -connect '" domain ":" port "'"
+    connexion_cmd="echo '" url "' | openssl s_client -crlf -quiet -verify_quiet -connect '" domain ":" port "' 2>/dev/null"
     connexion_cmd | getline
 }
 
@@ -64,7 +64,13 @@ function gemini_url_open(url) {
 
     connexion_open(url, domain, port)
 
-    if (/^2./) {
+    if (! $0) {
+        close(connexion_cmd)
+        sub(/null$/, "stdout", connexion_cmd)
+        sub(/-quiet -verify_quiet/, "", connexion_cmd)
+        print "\033[1mOpenSSL connexion error:\033[0m"
+        system(connexion_cmd)
+    } else if (/^2./) {
         CURRENT_URL=url
         if (!$2 || $2 ~ /text\/gemini/)
             parse_gemini(connexion_cmd)
