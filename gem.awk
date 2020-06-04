@@ -39,10 +39,10 @@ function print_text(connexion_cmd) {
     close(connexion_cmd)
 }
 
-function connexion_open(domain, path, port) {
+function connexion_open(url, domain, port) {
     if (!port)
         port = 1965
-    connexion_cmd="echo 'gemini://" domain "/" path "' | openssl s_client -crlf -quiet -verify_quiet -connect '" domain ":" port "'"
+    connexion_cmd="echo '" url "' | openssl s_client -crlf -quiet -verify_quiet -connect '" domain ":" port "'"
     connexion_cmd | getline
 }
 
@@ -58,10 +58,8 @@ function gemini_url_open(url) {
         port=substr(domain, RSTART + 1)
         domain=substr(domain, 1, RSTART - 1)
     }
-    path=url
-    sub(/gemini:\/\/[^\/]+\/?/, "", path)
 
-    connexion_open(domain, path, port)
+    connexion_open(url, domain, port)
 
     if (/^2./) {
         CURRENT_URL=url
@@ -84,6 +82,11 @@ function gemini_url_open(url) {
         close(connexion_cmd)
         print "Error: " $0
     }
+}
+
+function parent(url) {
+    sub(/\/[^\/]*\/?$/, "/", url)
+    return url
 }
 
 function prompt(str) {
@@ -119,7 +122,15 @@ $1 ~ /^[[:digit:]]+$/ {
     url=PAGE_LINKS[$1]
     if (url ~ /^[^:]+(\/.*)?$/) {
         # relative link
-        gemini_url_open(PAGE_URL "/" url)
+        if (PAGE_URL ~ /\/$/)
+            gemini_url_open(PAGE_URL url)
+        else {
+            parent_url=parent(CURRENT_URL)
+            if (parent_url == "gemini://")
+                gemini_url_open(PAGE_URL "/" url)
+            else
+                gemini_url_open(parent_url url)
+        }
     } else if (url ~ /^gemini:\/\//) {
         gemini_url_open(url)
     } else {
@@ -140,8 +151,7 @@ $1 ~ /^[[:digit:]]+$/ {
 
 /^\.\.$/ {
     if (CURRENT_URL) {
-        parent_url=CURRENT_URL
-        sub(/\/[^\/]*\/?$/, "/", parent_url)
+        parent_url=parent(CURRENT_URL)
         if (parent_url == "gemini://")
             print "Already at site root."
         else
