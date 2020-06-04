@@ -70,7 +70,7 @@ function gemini_url_open(url) {
         sub(/-quiet -verify_quiet/, "", connexion_cmd)
         print "\033[1mOpenSSL connexion error:\033[0m"
         system(connexion_cmd)
-    } else if (/^2./) {
+    } else if (/^2./) { # SUCCESS
         CURRENT_URL=url
         if (!$2 || $2 ~ /text\/gemini/)
             parse_gemini(connexion_cmd)
@@ -87,9 +87,45 @@ function gemini_url_open(url) {
             else
                 print "Ignored."
         }
+    } else if (/^3./) { # REDIRECT
+        redirect_url = substr($2, 1, length($2) -1)
+        print "Follow redirection ? => \033[4m" redirect_url "\033[0m"
+        prompt("Y/n")
+        getline
+        if (! /^[nN]/)
+            any_url_open(redirect_url, url)
     } else {
         close(connexion_cmd)
         print "Error: " $0
+    }
+
+    # $0 has been completely changed at this point:
+    prompt()
+    next
+}
+
+function any_url_open(url, base_url) {
+    if (!base_url)
+        base_url = PAGE_URL
+    if (url ~ /^[^:]+(\/.*)?$/) {
+        # relative link
+        if (base_url ~ /\/$/)
+            gemini_url_open(base_url url)
+        else {
+            parent_url=parent(base_url)
+            if (parent_url == "gemini://")
+                gemini_url_open(base_url "/" url)
+            else
+                gemini_url_open(parent_url url)
+        }
+    } else if (url ~ /^gemini:\/\//) {
+        gemini_url_open(url)
+    } else {
+        print "Not a gemini URL, open with (blank to ignore):"
+        prompt("System command")
+        getline
+        if($0)
+            system($0 " '" url "'")
     }
 }
 
@@ -130,27 +166,7 @@ $1 ~ /^[[:digit:]]+$/ {
         next
     }
     
-    url=PAGE_LINKS[$1]
-    if (url ~ /^[^:]+(\/.*)?$/) {
-        # relative link
-        if (PAGE_URL ~ /\/$/)
-            gemini_url_open(PAGE_URL url)
-        else {
-            parent_url=parent(CURRENT_URL)
-            if (parent_url == "gemini://")
-                gemini_url_open(PAGE_URL "/" url)
-            else
-                gemini_url_open(parent_url url)
-        }
-    } else if (url ~ /^gemini:\/\//) {
-        gemini_url_open(url)
-    } else {
-        print "Not a gemini URL, open with (blank to ignore):"
-        prompt("System command")
-        getline
-        if($0)
-            system($0 " '" url "'")
-    }
+    any_url_open(PAGE_LINKS[$1])
 }
 
 /^\.$/ {
