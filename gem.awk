@@ -92,6 +92,8 @@ function help() {
     print "The following commands are available:"
     print "  gemini://\033[3;4m.*\033[0m : open a gemini URL"
     print "  \033[3;4mn\033[0m           : follow link \033[3;4mn\033[0m of current text/gemini page"
+    print "  .           : reload current page"
+    print "  ..          : go to parent"
     print "  toc         : list titles in a text/gemini page"
     print "  links       : list URLs linked in a text/gemini page"
     print "  help        : show this help"
@@ -125,6 +127,26 @@ $1 ~ /^[[:digit:]]+$/ {
         if($0)
             system($0 " '" url "'")
     }
+}
+
+/^\.$/ {
+    if (CURRENT_URL)
+        gemini_url_open(CURRENT_URL)
+    else
+        print "No current page to reload."
+}
+
+/^\.\.$/ {
+    if (CURRENT_URL) {
+        parent_url=CURRENT_URL
+        sub(/\/[^\/]*\/?$/, "/", parent_url)
+        if (parent_url == "gemini://")
+            print "Already at site root."
+        else
+            gemini_url_open(parent_url)
+        }
+    else
+        print "No current page."
 }
 
 $1 == "toc" {
