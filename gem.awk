@@ -27,11 +27,12 @@ function parse_gemini(connexion_cmd) {
         HISTORY[++HISTORY_NUM] = PAGE_URL
 
     while (connexion_cmd | getline) {
+        sub(/\r$/, "")
         if (!pre) {
             if (/^=>/) {
                 PAGE_LINKS[++PAGE_LINK_NUM]=length($1) == 2 ? $2 : substr($1, 2)
                 match($0, /^=>[ \t]*[^ \t]+[ \t]*/)
-                $0="=> [" PAGE_LINK_NUM "] \033[4m" PAGE_LINKS[PAGE_LINK_NUM] "\033[0m " substr($0, RSTART + RLENGTH)
+                $0="=> [" PAGE_LINK_NUM "] \033[4m" PAGE_LINKS[PAGE_LINK_NUM] "\033[0m " (RSTART ? substr($0, RSTART + RLENGTH) : "")
             } else if (/^#/) {
                 PAGE_TITLES[++PAGE_TITLE_NUM]=PAGE_LINE_NUM + 1
                 $0="\033[1;4m" $0 "\033[0m"
@@ -83,14 +84,14 @@ function gemini_url_open(url) {
         sub(/-quiet -verify_quiet/, "", connexion_cmd)
         print "\033[1mOpenSSL connexion error:\033[0m"
         system(connexion_cmd)
-    } else if (/^1./) { # INPUT
+    } else if (/^1[0-9]/) { # INPUT
         close(connexion_cmd)
         print "Input requested: (blank to ignore)"
         prompt(substr($2, 4, length($2) -4))
         getline
         if ($0)
             gemini_url_open(url "?" url_encode($0))
-    } else if (/^2./) { # SUCCESS
+    } else if (/^2[0-9]/) { # SUCCESS
         CURRENT_URL=url
         if (!$2 || $2 ~ /text\/gemini/)
             parse_gemini(connexion_cmd)
@@ -107,7 +108,7 @@ function gemini_url_open(url) {
             else
                 print "Ignored."
         }
-    } else if (/^3./) { # REDIRECT
+    } else if (/^3[0-9]/) { # REDIRECT
         close(connexion_cmd)
         redirect_url = substr($2, 1, length($2) -1)
         print "Follow redirection ? => \033[4m" redirect_url "\033[0m"
@@ -128,7 +129,11 @@ function gemini_url_open(url) {
 function any_url_open(url, base_url) {
     if (!base_url)
         base_url = PAGE_URL
-    if (url ~ /^\//) {
+    if (!url) {
+        print "Empty URL."
+    } else if (url ~ /^\/\//) { # scheme-less remote link
+        gemini_url_open("gemini:" url)
+    } else if (url ~ /^\//) {
         # local absolute link
         match(PAGE_URL, /^gemini:\/\/[^\/]+/)
         gemini_url_open(substr(PAGE_URL, 1, RLENGTH) url)
@@ -152,6 +157,10 @@ function any_url_open(url, base_url) {
         if($0)
             system($0 " '" url "'")
     }
+
+    # $0 has been completely changed at this point:
+    prompt()
+    next
 }
 
 function parent(url) {
@@ -186,12 +195,10 @@ BEGIN {
 }
 
 $1 ~ /^[[:digit:]]+$/ {
-    if ($1 == 0 || $1 > PAGE_LINK_NUM) {
+    if ($1 == 0 || $1 > PAGE_LINK_NUM)
         print "No link with id " $1
-        next
-    }
-    
-    any_url_open(PAGE_LINKS[$1])
+    else
+        any_url_open(PAGE_LINKS[$1])
 }
 
 /^\.$/ {
