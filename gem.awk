@@ -178,6 +178,8 @@ function help() {
     print "  \033[3;4mn\033[0m           : follow link \033[3;4mn\033[0m of current text/gemini page"
     print "  .           : reload current page"
     print "  ..          : go to parent"
+    print "  | \033[3;4mcmd\033[0m       : redirect current page to \033[3;4mcmd\033[0m (new connexion)"
+    print "  > \033[3;4mfile\033[0m      : redirect current page to \033[3;4mfile\033[0m (new connexion)"
     print "  toc         : list titles in a text/gemini page"
     print "  links       : list URLs linked in a text/gemini page"
     print "  history [\033[3;4mN\033[0m] : list URLs of visited pages, or open \033[3;4mN\033[0mth visited page"
@@ -216,6 +218,14 @@ $1 ~ /^[[:digit:]]+$/ {
         else
             gemini_url_open(parent_url)
         }
+    else
+        print "No current page."
+}
+
+/^[|>]/ {
+    if (CURRENT_URL) {
+        plumb_out(connexion_cmd, $0)
+    }
     else
         print "No current page."
 }
